@@ -1,7 +1,7 @@
 # DH-O-MPA: Trust-Guided Path Repair for SIoT Service Discovery
 
 Code, data, and per-run results for the paper
-*"DH-O-MPA: Trust-Guided Path Repair and Biased Random-Key Decoding in a Multi-Objective Marine Predators Algorithm for Social IoT Service Discovery"*.
+*"DH-O-MPA: Trust-Guided Path Repair in a Multi-Objective Marine Predators Algorithm for Trust-Aware Service Discovery in Social IoT"*.
 
 DH-O-MPA searches for multi-hop service paths in a Social IoT network. Each path is scored on four objectives:
 - trust (geometric mean of link trust);
