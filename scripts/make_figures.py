@@ -136,3 +136,27 @@ ax.annotate("$v_m$", I.pos[I.dst], xytext=(4, 4), textcoords="offset points", fo
 ax.legend(fontsize=5.3, frameon=True, loc="lower left", framealpha=0.9)
 save(fig, "fig_network_map.png")
 print("figures written")
+
+# Fig: benchmark summary by regime (HV, feasibility, Friedman rank) -- data-driven
+LONG, SHORT = ["rgg500@42", "rgg1000@42"], ["hospital@42", "brightkite@42", "ba500@42", "ba1500@42"]
+fr = pd.read_csv(os.path.join(RES, "friedman_test.csv")).sort_values("mean_rank_HV")
+fig, axs = plt.subplots(1, 3, figsize=(7.16, 2.5))
+w = 0.8 / len(ALG)
+for k, (met, ttl) in enumerate([("HV", "(a) Mean hypervolume"), ("feas", "(b) Feasibility rate (%)")]):
+    ax = axs[k]
+    for j, a in enumerate(ALG):
+        vals = []
+        for grp in (LONG, SHORT):
+            d = main[(main.instance.isin(grp)) & (main.algorithm == a)]
+            vals.append(d.HV.mean() if met == "HV" else 100 * (d.HV > 0).mean())
+        ax.bar(np.arange(2) + (j - len(ALG) / 2 + 0.5) * w, vals, w, color=COL[a], label=a)
+    ax.set_xticks([0, 1]); ax.set_xticklabels(["Long routes\n(RGG-500/1000)", "Short routes\n(Hosp., Bk, BA)"], fontsize=6.5)
+    ax.set_title(ttl, fontsize=7.5)
+h_, l_ = axs[0].get_legend_handles_labels()
+fig.legend(h_, l_, loc="lower center", ncol=9, fontsize=6, frameon=False, bbox_to_anchor=(0.5, -0.06))
+ax = axs[2]
+ax.bar(range(len(fr)), fr.mean_rank_HV, color=[COL[a] for a in fr.algorithm])
+ax.set_xticks(range(len(fr))); ax.set_xticklabels(fr.algorithm, rotation=60, ha="right", fontsize=6)
+ax.set_title("(c) Friedman mean rank (lower = better)", fontsize=7.5)
+fig.tight_layout()
+save(fig, "fig_benchmark_summary.png")

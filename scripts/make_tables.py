@@ -28,7 +28,7 @@ MARK = {"+": "$^{+}$", "-": "$^{-}$", "=": "$^{\\approx}$"}
 
 
 def metric_table(met, hi, fmt, cap, label):
-    L = [r"\begin{table*}[t]", r"\centering", r"\caption{" + cap + "}", r"\label{" + label + "}",
+    L = [r"\begin{table*}[!tp]", r"\centering", r"\caption{" + cap + "}", r"\label{" + label + "}",
          r"\resizebox{\textwidth}{!}{%", r"\begin{tabular}{l" + "c" * len(INST) + "}", r"\toprule",
          "Algorithm & " + " & ".join(LBL[i] for i in INST) + r" \\", r"\midrule"]
     best = {i: (sm.loc[i][met].idxmax() if hi else sm.loc[i][met].idxmin()) for i in INST}
@@ -59,8 +59,25 @@ metric_table("HV", True, "{:.3f}", "Hypervolume (mean$\\pm$std, 30 runs, 3{,}000
 metric_table("IGD", False, "{:.3f}", "IGD (mean$\\pm$std, 30 runs; lower is better). " + SIG, "tab:igd")
 metric_table("runtime_s", False, "{:.1f}", "Wall-clock time per run in seconds (mean$\\pm$std).", "tab:runtime")
 
+# feasibility: share of runs whose final archive holds at least one feasible path (HV > 0)
+mr = pr[pr.group == "main"].assign(feas=lambda d: d.HV > 0)
+fz = (mr.groupby(["instance", "algorithm"]).feas.mean() * 100)
+L = [r"\begin{table*}[!tp]", r"\centering",
+     r"\caption{Feasibility rate (\%): share of the 30 runs whose final archive contains at least one path satisfying all constraints (WS-KSP: deterministic, one run). Best in bold.}",
+     r"\label{tab:feas}", r"\resizebox{\textwidth}{!}{%", r"\begin{tabular}{l" + "c" * len(INST) + "}", r"\toprule",
+     "Algorithm & " + " & ".join(LBL[i] for i in INST) + r" \\", r"\midrule"]
+for a in ALG:
+    cells = []
+    for i in INST:
+        v = fz.loc[(i, a)]
+        c = f"{v:.0f}"
+        cells.append(r"\textbf{" + c + "}" if v == fz.loc[i].max() else c)
+    L.append(CITE[a] + " & " + " & ".join(cells) + r" \\")
+L += [r"\bottomrule", r"\end{tabular}}", r"\end{table*}"]
+open(os.path.join(TAB, "feasibility.tex"), "w").write("\n".join(L))
+
 # instances table
-L = [r"\begin{table}[t]", r"\centering", r"\caption{Test instances. $h$: hop distance $v_1\to v_m$; $H$: hop budget; $t_{\mathrm{dl}}$: deadline; Mal.: compromised relays; Low-T: share of relays with $T_{\mathrm{base}}<0.7$.}",
+L = [r"\begin{table}[!htbp]", r"\centering", r"\caption{Test instances. $h$: hop distance $v_1\to v_m$; $H$: hop budget; $t_{\mathrm{dl}}$: deadline; Mal.: compromised relays; Low-T: share of relays with $T_{\mathrm{base}}<0.7$.}",
      r"\label{tab:instances}", r"\resizebox{\columnwidth}{!}{%", r"\begin{tabular}{lrrrrrrr}", r"\toprule",
      r"Instance & $N$ & $|E|$ & $h$ & $H$ & $t_{\mathrm{dl}}$ (ms) & Mal. & Low-T \\", r"\midrule"]
 for i in INST:
@@ -70,7 +87,7 @@ L += [r"\bottomrule", r"\end{tabular}}", r"\end{table}"]
 open(os.path.join(TAB, "instances.tex"), "w").write("\n".join(L))
 
 # extreme-objective table on large RGG + hospital
-L = [r"\begin{table*}[t]", r"\centering",
+L = [r"\begin{table*}[!tp]", r"\centering",
      r"\caption{Best attainable value of each objective in the final feasible archive (mean over runs): highest path trust, lowest latency and lowest energy.}",
      r"\label{tab:extremes}", r"\resizebox{\textwidth}{!}{%", r"\begin{tabular}{ll" + "c" * len(ALG) + "}", r"\toprule",
      "Instance & Objective & " + " & ".join(CITE[a] for a in ALG) + r" \\", r"\midrule"]
@@ -89,7 +106,7 @@ open(os.path.join(TAB, "extremes.tex"), "w").write("\n".join(L))
 # ablation
 ab = pr[pr.group == "ablation"]
 full = ab[ab.algorithm.str.startswith("V3")].HV.values
-L = [r"\begin{table}[t]", r"\centering",
+L = [r"\begin{table}[!htbp]", r"\centering",
      r"\caption{Ablation on RGG-1000 (30 runs). GD: guided decoder; AF: adaptive FADs; TPR: trust-guided path repair. $p$: Wilcoxon rank-sum vs.\ full DH-O-MPA (V3).}",
      r"\label{tab:ablation}", r"\resizebox{\columnwidth}{!}{%", r"\begin{tabular}{lccc}", r"\toprule",
      r"Variant & HV $\uparrow$ & IGD $\downarrow$ & $p$ (HV) \\", r"\midrule"]
@@ -103,7 +120,7 @@ open(os.path.join(TAB, "ablation.tex"), "w").write("\n".join(L))
 
 # hospital
 h = pr[(pr.group == "main") & (pr.instance == "hospital@42")]
-L = [r"\begin{table}[t]", r"\centering",
+L = [r"\begin{table}[!htbp]", r"\centering",
      r"\caption{Hospital-1000 case study (30 runs): best-compromise path chosen by the same rule for all algorithms. Success: deadline met and no compromised relay.}",
      r"\label{tab:case}", r"\resizebox{\columnwidth}{!}{%", r"\begin{tabular}{lcccc}", r"\toprule",
      r"Algorithm & $f_{Trust}$ & Latency (ms) & Energy (mJ) & Success (\%) \\", r"\midrule"]
@@ -131,5 +148,11 @@ for _, r in fr.iterrows():
 hv = st[st.metric == "HV"]
 M += [f"\\newcommand{{\\nwin}}{{{int((hv.outcome == '+').sum())}}}", f"\\newcommand{{\\ntie}}{{{int((hv.outcome == '=').sum())}}}",
       f"\\newcommand{{\\nloss}}{{{int((hv.outcome == '-').sum())}}}", f"\\newcommand{{\\ntot}}{{{len(hv)}}}"]
+# instances on which DH-O-MPA is significantly better (HV) than every stochastic metaheuristic
+stoch = hv[hv.baseline != "WS-KSP"]
+nall = sum(int((stoch[stoch.instance == i].outcome == "+").all()) for i in INST)
+M.append(f"\\newcommand{{\\nallwin}}{{{nall}}}")
+ab3 = ab[ab.algorithm.str.startswith("V3")].HV.mean(); ab0 = ab[ab.algorithm.str.startswith("V0")].HV.mean()
+M.append(f"\\newcommand{{\\ablgain}}{{{100 * (ab3 - ab0) / ab0:.1f}}}")
 open(os.path.join(TAB, "numbers.tex"), "w").write("\n".join(M))
 print("\n".join(M))
